@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BP Debate Timer — British Parliamentary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/jetbrains-mono@latest/index.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/index.css">
+    <style>
+        :root {
+            --bg: #000000;
+            --fg: #ffffff;
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            transition: background-color 600ms ease, color 400ms ease;
+            overflow-x: hidden;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .timer-glow {
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.25), 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-press {
+            transition: transform 80ms ease, box-shadow 80ms ease, background-color 120ms ease;
+        }
+
+        .btn-press:active {
+            transform: scale(0.96);
+        }
+
+        .pulse-ring {
+            animation: pulseRing 1.2s ease-out infinite;
+        }
+
+        @keyframes pulseRing {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6);
+            }
+
+            100% {
+                box-shadow: 0 0 0 28px rgba(255, 255, 255, 0);
+            }
+        }
+
+        .phase-pill {
+            transition: all 300ms ease;
+        }
+
+        .scroll-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scroll-hide {
+            scrollbar-width: none;
+        }
+
+        /* Color themes driven by JS */
+        body.phase-black {
+            background-color: #0b132b;
+            /* Midnight Blue/Black */
+            color: #fff;
+        }
+
+        body.phase-green {
+            background-color: #0f5132;
+            color: #fff;
+        }
+
+        body.phase-yellow {
+            background-color: #b45309;
+            color: #fff;
+        }
+
+        body.phase-red {
+            background-color: #7f1d1d;
+            color: #fff;
+        }
+
+        body.phase-prep {
+            background-color: #1e293b;
+            color: #fff;
+        }
+
+        .phase-green .timer-glow {
+            text-shadow: 0 0 40px rgba(255, 255, 255, 0.35), 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .phase-yellow .timer-glow {
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.6);
+        }
+
+        .phase-red .timer-glow {
+            text-shadow: 0 0 50px rgba(255, 255, 255, 0.4);
+        }
+
+        /* Overtime blink */
+        @keyframes blinkRed {
+
+            0%,
+            100% {
+                background-color: #7f1d1d;
+            }
+
+            50% {
+                background-color: #991b1b;
+            }
+        }
+
+        body.phase-red.overtime-blink {
+            animation: blinkRed 1s ease-in-out infinite;
+        }
+
+        .speaker-card {
+            transition: all 300ms ease;
+        }
+
+        .speaker-card.active {
+            background: rgba(255, 255, 255, 0.95) !important;
+            color: #000 !important;
+            transform: scale(1.05);
+        }
+
+        .speaker-card.done {
+            opacity: 0.5;
+        }
+
+        .team-OG {
+            border-color: #60a5fa;
+        }
+
+        .team-OO {
+            border-color: #f87171;
+        }
+
+        .team-CG {
+            border-color: #60a5fa;
+        }
+
+        .team-CO {
+            border-color: #f87171;
+        }
+
+        .team-badge-OG,
+        .team-badge-CG {
+            background: #1d4ed8;
+        }
+
+        .team-badge-OO,
+        .team-badge-CO {
+            background: #b91c1c;
+        }
+
+        /* POI overlay */
+        .poi-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .poi-ring {
+            width: min(85vw, 420px);
+            aspect-ratio: 1;
+            border-radius: 50%;
+            border: 8px solid rgba(255, 255, 255, 0.15);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .poi-ring svg {
+            position: absolute;
+            inset: -8px;
+            transform: rotate(-90deg);
+        }
+
+        .hidden-view {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body class="phase-black">
+
+    <!-- ============ MAIN DEBATE VIEW ============ -->
+    <div id="mainView" class="min-h-screen flex flex-col p-4 md:p-6">
+
+        <!-- Top Bar -->
+        <header class="flex items-center justify-between gap-3 mb-4">
+            <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full bg-white/80" id="liveIndicator"></div>
+                <h1 class="text-sm md:text-base font-bold tracking-widest uppercase opacity-80">BP Debate Timer</h1>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="wakeLockBtn"
+                    class="btn-press px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-xs md:text-sm font-semibold flex items-center gap-1.5"
+                    title="Keep screen awake">
+                    <span id="wakeLockIcon">🔓</span>
+                    <span id="wakeLockText" class="hidden sm:inline">Wake Lock</span>
+                </button>
+                <button id="toPrepBtn"
+                    class="btn-press px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-xs md:text-sm font-semibold">
+                    📝 Prep
+                </button>
+            </div>
+        </header>
+
+        <!-- Speaker Progress -->
+        <section class="mb-4">
+            <div id="speakerProgress" class="grid grid-cols-4 md:grid-cols-8 gap-2"></div>
+        </section>
+
+        <!-- Current Speaker Info -->
+        <section class="text-center mb-2">
+            <div id="teamBadge"
+                class="inline-block px-3 py-1 rounded-full text-xs md:text-sm font-bold uppercase tracking-wider mb-2 team-badge-OG">
+                <span id="teamLabel">Opening Government</span>
+            </div>
+            <h2 id="speakerName" class="text-2xl md:text-4xl font-extrabold tracking-tight">Prime Minister</h2>
+            <p id="phaseLabel" class="mt-2 text-sm md:text-base font-semibold uppercase tracking-[0.2em] opacity-90">
+                Protected Time</p>
+        </section>
+
+        <!-- Giant Timer Display -->
+        <section class="flex-1 flex items-center justify-center min-h-[30vh]">
+            <div class="relative">
+                <div id="mainTimer" class="mono timer-glow font-black text-center leading-none"
+                    style="font-size: clamp(6rem, 28vw, 22rem);">
+                    0:00
+                </div>
+            </div>
+        </section>
+
+        <!-- POI Button (visible only during open time) -->
+        <section id="poiSection" class="hidden mb-3 flex justify-center">
+            <button id="poiBtn"
+                class="btn-press px-8 py-4 md:px-12 md:py-5 rounded-2xl bg-white text-black font-black text-xl md:text-3xl tracking-widest shadow-2xl hover:scale-105">
+                💬 POI · 15s
+            </button>
+        </section>
+
+        <!-- Controls -->
+        <section class="space-y-3 pb-2">
+            <!-- Primary Controls -->
+            <div class="grid grid-cols-4 gap-2 md:gap-3">
+                <button id="prevBtn"
+                    class="btn-press py-4 md:py-5 rounded-xl bg-white/10 hover:bg-white/20 font-bold text-sm md:text-lg border border-white/20">
+                    ◀ Prev
+                </button>
+                <button id="playBtn"
+                    class="btn-press py-4 md:py-5 rounded-xl bg-white text-black font-black text-sm md:text-xl col-span-1 md:col-span-1 shadow-xl">
+                    ▶ Start
+                </button>
+                <button id="nextBtn"
+                    class="btn-press py-4 md:py-5 rounded-xl bg-white/10 hover:bg-white/20 font-bold text-sm md:text-lg border border-white/20">
+                    Next ▶
+                </button>
+                <button id="resetBtn"
+                    class="btn-press py-4 md:py-5 rounded-xl bg-red-600 hover:bg-red-700 font-black text-sm md:text-lg shadow-xl">
+                    ↻ RESET
+                </button>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- ============ PREP TIMER VIEW ============ -->
+    <div id="prepView" class="hidden-view min-h-screen flex flex-col p-4 md:p-6 phase-prep">
+        <header class="flex items-center justify-between gap-3 mb-4">
+            <h1 class="text-sm md:text-base font-bold tracking-widest uppercase opacity-80">📝 15-Minute Prep Timer</h1>
+            <button id="toMainBtn"
+                class="btn-press px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold">
+                ← Back to Debate
+            </button>
+        </header>
+
+        <section class="flex-1 flex flex-col items-center justify-center min-h-[60vh]">
+            <p class="text-base md:text-xl uppercase tracking-[0.3em] opacity-70 mb-4">Preparation Time Remaining</p>
+            <div id="prepTimer" class="mono timer-glow font-black text-center leading-none"
+                style="font-size: clamp(5rem, 26vw, 20rem);">
+                15:00
+            </div>
+            <p id="prepStatus" class="mt-4 text-base md:text-lg font-semibold opacity-80">Ready to start</p>
+        </section>
+
+        <section class="space-y-3 pb-4">
+            <div class="grid grid-cols-3 gap-3">
+                <button id="prepPlayBtn"
+                    class="btn-press py-5 md:py-6 rounded-xl bg-white text-black font-black text-lg md:text-2xl shadow-xl">
+                    ▶ Start
+                </button>
+                <button id="prepPauseBtn"
+                    class="btn-press py-5 md:py-6 rounded-xl bg-white/10 hover:bg-white/20 font-bold text-lg md:text-2xl border border-white/20">
+                    ⏸ Pause
+                </button>
+                <button id="prepResetBtn"
+                    class="btn-press py-5 md:py-6 rounded-xl bg-red-600 hover:bg-red-700 font-black text-lg md:text-2xl shadow-xl">
+                    ↻ Reset
+                </button>
+            </div>
+            <div class="grid grid-cols-4 gap-2 text-xs md:text-sm font-semibold">
+                <button data-prep-add="-60"
+                    class="prepAddBtn btn-press py-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20">-1
+                    min</button>
+                <button data-prep-add="60"
+                    class="prepAddBtn btn-press py-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20">+1
+                    min</button>
+                <button data-prep-add="120"
+                    class="prepAddBtn btn-press py-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20">+2
+                    min</button>
+                <button data-prep-add="300"
+                    class="prepAddBtn btn-press py-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20">+5
+                    min</button>
+            </div>
+            <div class="grid grid-cols-1 mt-2">
+                <button id="prepBellBtn"
+                    class="btn-press py-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-xs md:text-sm font-semibold">🔔
+                    Test
+                    Bell</button>
+            </div>
+        </section>
+    </div>
+
+    <!-- ============ POI OVERLAY ============ -->
+    <div id="poiOverlay" class="poi-overlay hidden-view">
+        <div class="text-center">
+            <p class="text-sm md:text-lg uppercase tracking-[0.3em] opacity-80 mb-4">Point of Information</p>
+            <div class="poi-ring">
+                <svg viewBox="0 0 200 200">
+                    <circle cx="100" cy="100" r="92" fill="none" stroke="white" stroke-width="6" stroke-dasharray="578"
+                        stroke-dashoffset="0" stroke-linecap="round" id="poiCircle" />
+                </svg>
+                <div id="poiTimer" class="mono font-black" style="font-size: clamp(5rem, 18vw, 11rem);">15</div>
+            </div>
+            <p class="mt-6 text-base md:text-xl font-bold opacity-80">Speaker has 15 seconds</p>
+            <button id="poiCloseBtn"
+                class="btn-press mt-6 px-8 py-3 rounded-xl bg-white/10 hover:bg-white/20 font-bold border border-white/20">
+                ✕ Dismiss
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /* ============ SPEAKERS DATA ============ */
+        const SPEAKERS = [
+            { name: 'Prime Minister', team: 'OG', teamFull: 'Opening Government' },
+            { name: 'Leader of Opposition', team: 'OO', teamFull: 'Opening Opposition' },
+            { name: 'Deputy Prime Minister', team: 'OG', teamFull: 'Opening Government' },
+            { name: 'Deputy Leader of Opposition', team: 'OO', teamFull: 'Opening Opposition' },
+            { name: 'Member of Government', team: 'CG', teamFull: 'Closing Government' },
+            { name: 'Member of Opposition', team: 'CO', teamFull: 'Closing Opposition' },
+            { name: 'Government Whip', team: 'CG', teamFull: 'Closing Government' },
+            { name: 'Opposition Whip', team: 'CO', teamFull: 'Closing Opposition' }
+        ];
+
+        /* ============ STATE ============ */
+        const state = {
+            speakerIndex: 0,
+            elapsedMs: 0,          // main timer elapsed
+            running: false,
+            lastTick: 0,
+            firedBells: new Set(), // keys like "60", "360", "420", "440"
+            overtimeInterval: null,
+            // Prep timer
+            prepElapsedMs: 0,
+            prepTotalMs: 15 * 60 * 1000,
+            prepRunning: false,
+            prepLastTick: 0,
+            // POI
+            poiActive: false,
+            poiRemainingMs: 15000,
+            poiLastTick: 0,
+            poiInterval: null,
+            // Wake lock
+            wakeLock: null,
+            audioCtx: null,
+            currentPhaseKey: null
+        };
+
+        /* ============ AUDIO BELL ============ */
+        function ensureAudio() {
+            if (!state.audioCtx) {
+                state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
+            return state.audioCtx;
+        }
+
+        function playBell(count = 1) {
+            const ctx = ensureAudio();
+            const now = ctx.currentTime;
+            for (let i = 0; i < count; i++) {
+                const t = now + i * 0.45;
+                // Bell = sum of harmonically-related sine tones with exponential decay
+                const freqs = [523.25, 1046.5, 1568, 2093]; // C5 + overtones
+                const gains = [0.55, 0.35, 0.2, 0.1];
+                const master = ctx.createGain();
+                master.gain.setValueAtTime(0.0001, t);
+                master.gain.exponentialRampToValueAtTime(0.9, t + 0.005);
+                master.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+                master.connect(ctx.destination);
+                freqs.forEach((f, idx) => {
+                    const osc = ctx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.value = f;
+                    const g = ctx.createGain();
+                    g.gain.value = gains[idx];
+                    osc.connect(g); g.connect(master);
+                    osc.start(t); osc.stop(t + 1.85);
+                });
+            }
+        }
+
+        /* ============ TIMER FORMAT ============ */
+        function formatTime(ms, opts = {}) {
+            const totalSec = Math.max(0, Math.floor(ms / 1000));
+            const m = Math.floor(totalSec / 60);
+            const s = totalSec % 60;
+            if (opts.showHour) {
+                const h = Math.floor(m / 60);
+                const rm = m % 60;
+                return `${h}:${String(rm).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            }
+            return `${m}:${String(s).padStart(2, '0')}`;
+        }
+
+        /* ============ SPEAKER UI ============ */
+        function renderSpeakerProgress() {
+            const wrap = document.getElementById('speakerProgress');
+            wrap.innerHTML = '';
+            SPEAKERS.forEach((sp, idx) => {
+                const div = document.createElement('div');
+                const isActive = idx === state.speakerIndex;
+                const isDone = idx < state.speakerIndex;
+                div.className = `speaker-card rounded-lg px-2 py-2 md:py-3 border-2 border-white/20 text-center ${isActive ? 'active' : ''} ${isDone ? 'done' : ''}`;
+                div.innerHTML = `
+      <div class="text-[10px] md:text-xs font-bold uppercase tracking-wider opacity-80">${sp.team}</div>
+      <div class="text-[11px] md:text-sm font-bold mt-0.5 truncate">${shortenName(sp.name)}</div>
+    `;
+                wrap.appendChild(div);
+            });
+        }
+
+        function shortenName(n) {
+            const map = {
+                'Prime Minister': 'PM',
+                'Leader of Opposition': 'LO',
+                'Deputy Prime Minister': 'DPM',
+                'Deputy Leader of Opposition': 'DLO',
+                'Member of Government': 'MG',
+                'Member of Opposition': 'MO',
+                'Government Whip': 'GW',
+                'Opposition Whip': 'OW'
+            };
+            return map[n] || n;
+        }
+
+        function updateSpeakerInfo() {
+            const sp = SPEAKERS[state.speakerIndex];
+            document.getElementById('speakerName').textContent = sp.name;
+            document.getElementById('teamLabel').textContent = sp.teamFull;
+            const badge = document.getElementById('teamBadge');
+            badge.className = `inline-block px-3 py-1 rounded-full text-xs md:text-sm font-bold uppercase tracking-wider mb-2 team-badge-${sp.team}`;
+            renderSpeakerProgress();
+        }
+
+        /* ============ PHASE LOGIC ============ */
+        function getPhase(elapsedSec) {
+            if (elapsedSec < 60) return { key: 'black', label: 'Protected Time' };
+            if (elapsedSec < 360) return { key: 'green', label: 'Open Time — POIs Allowed' };
+            if (elapsedSec < 420) return { key: 'yellow', label: 'Protected Time' };
+            return { key: 'red', label: elapsedSec >= 440 ? 'Overtime — Stop Speaking' : 'Overtime — Wrap Up' };
+        }
+
+        function updatePhaseUI() {
+            const sec = Math.floor(state.elapsedMs / 1000);
+            const phase = getPhase(sec);
+
+            if (state.currentPhaseKey !== phase.key) {
+                document.body.classList.remove('phase-black', 'phase-green', 'phase-yellow', 'phase-red');
+                document.body.classList.add(`phase-${phase.key}`);
+                state.currentPhaseKey = phase.key;
+            }
+
+            if (phase.key === 'red' && sec >= 440) {
+                if (!document.body.classList.contains('overtime-blink')) {
+                    document.body.classList.add('overtime-blink');
+                }
+            } else {
+                document.body.classList.remove('overtime-blink');
+            }
+
+            document.getElementById('phaseLabel').textContent = phase.label;
+
+            // POI button visibility
+            const poiSection = document.getElementById('poiSection');
+            if (phase.key === 'green' && state.running) {
+                poiSection.classList.remove('hidden');
+            } else {
+                poiSection.classList.add('hidden');
+            }
+        }
+
+        /* ============ BELL TRIGGERS ============ */
+        function checkBells() {
+            const sec = Math.floor(state.elapsedMs / 1000);
+            if (sec >= 60 && !state.firedBells.has('60')) { playBell(1); state.firedBells.add('60'); }
+            if (sec >= 360 && !state.firedBells.has('360')) { playBell(1); state.firedBells.add('360'); }
+            if (sec >= 420 && !state.firedBells.has('420')) { playBell(2); state.firedBells.add('420'); }
+            if (sec >= 440 && !state.overtimeInterval) {
+                state.overtimeInterval = setInterval(() => { if (state.running) playBell(1); }, 1500);
+            }
+        }
+
+        /* ============ MAIN TIMER TICK ============ */
+        function tick() {
+            const now = performance.now();
+            if (state.running) {
+                const dt = now - state.lastTick;
+                state.elapsedMs += dt;
+                checkBells();
+            }
+            state.lastTick = now;
+
+            document.getElementById('mainTimer').textContent = formatTime(state.elapsedMs);
+            updatePhaseUI();
+        }
+
+        /* ============ CONTROLS ============ */
+        function startTimer() {
+            ensureAudio();
+            state.running = true;
+            state.lastTick = performance.now();
+            document.getElementById('playBtn').innerHTML = '⏸ Pause';
+            requestWakeLock();
+        }
+
+        function pauseTimer() {
+            state.running = false;
+            document.getElementById('playBtn').innerHTML = '▶ Resume';
+        }
+
+        function togglePlay() {
+            if (state.running) pauseTimer(); else startTimer();
+        }
+
+        function resetCurrentSpeaker() {
+            state.elapsedMs = 0;
+            state.firedBells.clear();
+            if (state.overtimeInterval) { clearInterval(state.overtimeInterval); state.overtimeInterval = null; }
+            document.getElementById('mainTimer').textContent = '0:00';
+            pauseTimer();
+            document.getElementById('playBtn').innerHTML = '▶ Start';
+            state.currentPhaseKey = null; // force phase update
+            updatePhaseUI();
+        }
+
+        function nextSpeaker() {
+            if (state.speakerIndex < SPEAKERS.length - 1) {
+                state.speakerIndex++;
+                resetCurrentSpeaker();
+                updateSpeakerInfo();
+            }
+        }
+
+        function prevSpeaker() {
+            if (state.speakerIndex > 0) {
+                state.speakerIndex--;
+                resetCurrentSpeaker();
+                updateSpeakerInfo();
+            }
+        }
+
+        /* ============ POI ============ */
+        function startPOI() {
+            if (state.poiActive) return;
+            state.poiActive = true;
+            state.poiRemainingMs = 15000;
+            state.poiLastTick = performance.now();
+            document.getElementById('poiOverlay').classList.remove('hidden-view');
+            updatePOIDisplay();
+            state.poiInterval = setInterval(tickPOI, 50);
+        }
+
+        function tickPOI() {
+            const now = performance.now();
+            const dt = now - state.poiLastTick;
+            state.poiLastTick = now;
+            state.poiRemainingMs -= dt;
+            if (state.poiRemainingMs <= 0) {
+                state.poiRemainingMs = 0;
+                closePOI();
+                playBell(1);
+                return;
+            }
+            updatePOIDisplay();
+        }
+
+        function updatePOIDisplay() {
+            const secs = Math.ceil(state.poiRemainingMs / 1000);
+            document.getElementById('poiTimer').textContent = secs;
+            const total = 15000;
+            const pct = state.poiRemainingMs / total;
+            const circumference = 2 * Math.PI * 92;
+            const offset = circumference * (1 - pct);
+            document.getElementById('poiCircle').setAttribute('stroke-dashoffset', offset);
+        }
+
+        function closePOI() {
+            state.poiActive = false;
+            if (state.poiInterval) { clearInterval(state.poiInterval); state.poiInterval = null; }
+            document.getElementById('poiOverlay').classList.add('hidden-view');
+        }
+
+        /* ============ PREP TIMER ============ */
+        function tickPrep() {
+            const now = performance.now();
+            if (state.prepRunning) {
+                const dt = now - state.prepLastTick;
+                state.prepElapsedMs += dt;
+                if (state.prepElapsedMs >= state.prepTotalMs) {
+                    state.prepElapsedMs = state.prepTotalMs;
+                    state.prepRunning = false;
+                    playBell(2);
+                    document.getElementById('prepPlayBtn').innerHTML = '▶ Start';
+                    document.getElementById('prepStatus').textContent = '⏰ Prep time is over!';
+                }
+            }
+            state.prepLastTick = now;
+
+            const remaining = Math.max(0, state.prepTotalMs - state.prepElapsedMs);
+            document.getElementById('prepTimer').textContent = formatTime(remaining);
+        }
+
+        function startPrep() {
+            ensureAudio();
+            if (state.prepElapsedMs >= state.prepTotalMs) return;
+            state.prepRunning = true;
+            state.prepLastTick = performance.now();
+            document.getElementById('prepPlayBtn').innerHTML = '⏸ Running...';
+            document.getElementById('prepStatus').textContent = 'In progress — focus on your case';
+        }
+
+        function pausePrep() {
+            state.prepRunning = false;
+            document.getElementById('prepPlayBtn').innerHTML = '▶ Resume';
+            document.getElementById('prepStatus').textContent = 'Paused';
+        }
+
+        function resetPrep() {
+            state.prepElapsedMs = 0;
+            state.prepRunning = false;
+            document.getElementById('prepPlayBtn').innerHTML = '▶ Start';
+            document.getElementById('prepStatus').textContent = 'Ready to start';
+            document.getElementById('prepTimer').textContent = formatTime(state.prepTotalMs);
+        }
+
+        function addPrepTime(seconds) {
+            state.prepTotalMs += seconds * 1000;
+            if (state.prepTotalMs < 0) state.prepTotalMs = 0;
+            if (state.prepElapsedMs > state.prepTotalMs) state.prepElapsedMs = state.prepTotalMs;
+            document.getElementById('prepTimer').textContent = formatTime(Math.max(0, state.prepTotalMs - state.prepElapsedMs));
+        }
+
+        /* ============ WAKE LOCK ============ */
+        async function requestWakeLock() {
+            if (!('wakeLock' in navigator)) return;
+            try {
+                if (state.wakeLock) return;
+                state.wakeLock = await navigator.wakeLock.request('screen');
+                document.getElementById('wakeLockIcon').textContent = '🔒';
+                state.wakeLock.addEventListener('release', () => {
+                    state.wakeLock = null;
+                    document.getElementById('wakeLockIcon').textContent = '🔓';
+                });
+            } catch (e) {
+                console.warn('Wake lock failed:', e);
+            }
+        }
+
+        async function toggleWakeLock() {
+            if (state.wakeLock) {
+                await state.wakeLock.release();
+                state.wakeLock = null;
+                document.getElementById('wakeLockIcon').textContent = '🔓';
+            } else {
+                await requestWakeLock();
+            }
+        }
+
+        /* ============ VIEW SWITCHING ============ */
+        function showPrep() {
+            document.getElementById('mainView').classList.add('hidden-view');
+            document.getElementById('prepView').classList.remove('hidden-view');
+            document.body.classList.remove('phase-black', 'phase-green', 'phase-yellow', 'phase-red', 'overtime-blink');
+            document.body.classList.add('phase-prep');
+            state.currentPhaseKey = 'prep';
+        }
+
+        function showMain() {
+            document.getElementById('prepView').classList.add('hidden-view');
+            document.getElementById('mainView').classList.remove('hidden-view');
+            document.body.classList.remove('phase-prep');
+            state.currentPhaseKey = null;
+            updatePhaseUI();
+        }
+
+        /* ============ EVENT BINDINGS ============ */
+        document.getElementById('playBtn').addEventListener('click', togglePlay);
+        document.getElementById('resetBtn').addEventListener('click', resetCurrentSpeaker);
+        document.getElementById('nextBtn').addEventListener('click', nextSpeaker);
+        document.getElementById('prevBtn').addEventListener('click', prevSpeaker);
+        document.getElementById('poiBtn').addEventListener('click', startPOI);
+        document.getElementById('poiCloseBtn').addEventListener('click', closePOI);
+        document.getElementById('wakeLockBtn').addEventListener('click', toggleWakeLock);
+
+        document.getElementById('toPrepBtn').addEventListener('click', showPrep);
+        document.getElementById('toMainBtn').addEventListener('click', showMain);
+
+        document.getElementById('prepPlayBtn').addEventListener('click', () => {
+            if (state.prepRunning) pausePrep(); else startPrep();
+        });
+        document.getElementById('prepPauseBtn').addEventListener('click', pausePrep);
+        document.getElementById('prepResetBtn').addEventListener('click', resetPrep);
+        document.getElementById('prepBellBtn').addEventListener('click', () => { ensureAudio(); playBell(2); });
+        document.querySelectorAll('.prepAddBtn').forEach(btn => {
+            btn.addEventListener('click', () => addPrepTime(parseInt(btn.dataset.prepAdd, 10)));
+        });
+
+        /* Keyboard shortcuts */
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (document.getElementById('prepView').classList.contains('hidden-view')) {
+                if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+                else if (e.key === 'r' || e.key === 'R') resetCurrentSpeaker();
+                else if (e.key === 'ArrowRight') nextSpeaker();
+                else if (e.key === 'ArrowLeft') prevSpeaker();
+                else if (e.key === 'p' || e.key === 'P') startPOI();
+            }
+        });
+
+        /* Resume wake lock when returning to tab */
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && state.running && !state.wakeLock) {
+                requestWakeLock();
+            }
+        });
+
+        /* ============ BOOT ============ */
+        updateSpeakerInfo();
+        updatePhaseUI();
+        state.lastTick = performance.now();
+        state.prepLastTick = performance.now();
+        setInterval(tick, 100);
+        setInterval(tickPrep, 100);
+
+        /* First user interaction unlocks audio on iOS */
+        document.addEventListener('click', () => { ensureAudio(); }, { once: true });
+        document.addEventListener('touchstart', () => { ensureAudio(); }, { once: true });
+    </script>
+</body>
+
+</html>
