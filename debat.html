@@ -48,24 +48,6 @@
             transform: scale(0.96);
         }
 
-        .pulse-ring {
-            animation: pulseRing 1.2s ease-out infinite;
-        }
-
-        @keyframes pulseRing {
-            0% {
-                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6);
-            }
-
-            100% {
-                box-shadow: 0 0 0 28px rgba(255, 255, 255, 0);
-            }
-        }
-
-        .phase-pill {
-            transition: all 300ms ease;
-        }
-
         .scroll-hide::-webkit-scrollbar {
             display: none;
         }
@@ -144,22 +126,6 @@
             opacity: 0.5;
         }
 
-        .team-OG {
-            border-color: #60a5fa;
-        }
-
-        .team-OO {
-            border-color: #f87171;
-        }
-
-        .team-CG {
-            border-color: #60a5fa;
-        }
-
-        .team-CO {
-            border-color: #f87171;
-        }
-
         .team-badge-OG,
         .team-badge-CG {
             background: #1d4ed8;
@@ -213,7 +179,11 @@
         <!-- Top Bar -->
         <header class="flex items-center justify-between gap-3 mb-4">
             <div class="flex items-center gap-2">
-                <div class="w-3 h-3 rounded-full bg-white/80" id="liveIndicator"></div>
+                <button id="clearLogsBtn"
+                    class="btn-press px-3 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-100 text-xs md:text-sm font-semibold">
+                    🗑️ Clear Logs
+                </button>
+                <div class="w-3 h-3 rounded-full bg-white/80 hidden md:block" id="liveIndicator"></div>
                 <h1 class="text-sm md:text-base font-bold tracking-widest uppercase opacity-80">BP Debate Timer</h1>
             </div>
             <div class="flex items-center gap-2">
@@ -235,29 +205,48 @@
             <div id="speakerProgress" class="grid grid-cols-4 md:grid-cols-8 gap-2"></div>
         </section>
 
-        <!-- Current Speaker Info -->
-        <section class="text-center mb-2">
-            <div id="teamBadge"
-                class="inline-block px-3 py-1 rounded-full text-xs md:text-sm font-bold uppercase tracking-wider mb-2 team-badge-OG">
-                <span id="teamLabel">Opening Government</span>
+        <!-- Main Content Area: 3 Columns -->
+        <section class="flex-1 flex items-start justify-between w-full px-1 md:px-4 gap-2">
+            <!-- Government Logs (Left) -->
+            <div class="flex-1 flex flex-col justify-start max-h-[60vh] overflow-y-auto scroll-hide">
+                <h4
+                    class="text-[20px] md:text-[28px] font-bold text-blue-400 uppercase border-b border-white/10 pb-1 mb-2 text-center md:text-left leading-tight">
+                    Gov</h4>
+                <div id="govLogs" class="space-y-2 text-[28px] md:text-[40px] leading-tight"></div>
             </div>
-            <h2 id="speakerName" class="text-2xl md:text-4xl font-extrabold tracking-tight">Prime Minister</h2>
-            <p id="phaseLabel" class="mt-2 text-sm md:text-base font-semibold uppercase tracking-[0.2em] opacity-90">
-                Protected Time</p>
-        </section>
 
-        <!-- Giant Timer Display -->
-        <section class="flex-1 flex items-center justify-center min-h-[30vh]">
-            <div class="relative">
-                <div id="mainTimer" class="mono timer-glow font-black text-center leading-none"
-                    style="font-size: clamp(6rem, 28vw, 22rem);">
+            <!-- Center Column -->
+            <div class="flex-shrink-0 z-10 flex flex-col items-center justify-start px-2 md:px-6">
+                <!-- Current Speaker Info -->
+                <div class="text-center mb-2">
+                    <div id="teamBadge"
+                        class="inline-block px-3 py-1 rounded-full text-xs md:text-sm font-bold uppercase tracking-wider mb-2 team-badge-OG">
+                        <span id="teamLabel">Opening Government</span>
+                    </div>
+                    <h2 id="speakerName" class="text-2xl md:text-4xl font-extrabold tracking-tight">Prime Minister</h2>
+                    <p id="phaseLabel"
+                        class="mt-2 text-sm md:text-base font-semibold uppercase tracking-[0.2em] opacity-90">
+                        Protected Time</p>
+                </div>
+
+                <!-- Timer -->
+                <div id="mainTimer" class="mono timer-glow font-black text-center leading-none my-4 md:my-8"
+                    style="font-size: clamp(4.5rem, 18vw, 18rem);">
                     0:00
                 </div>
+            </div>
+
+            <!-- Opposition Logs (Right) -->
+            <div class="flex-1 flex flex-col justify-start max-h-[60vh] overflow-y-auto scroll-hide text-right">
+                <h4
+                    class="text-[20px] md:text-[28px] font-bold text-red-400 uppercase border-b border-white/10 pb-1 mb-2 text-center md:text-right leading-tight">
+                    Opp</h4>
+                <div id="oppLogs" class="space-y-2 text-[28px] md:text-[40px] leading-tight"></div>
             </div>
         </section>
 
         <!-- POI Button (visible only during open time) -->
-        <section id="poiSection" class="hidden mb-3 flex justify-center">
+        <section id="poiSection" class="hidden mb-4 w-full flex justify-center px-1 md:px-4">
             <button id="poiBtn"
                 class="btn-press px-8 py-4 md:px-12 md:py-5 rounded-2xl bg-white text-black font-black text-xl md:text-3xl tracking-widest shadow-2xl hover:scale-105">
                 💬 POI · 15s
@@ -265,7 +254,7 @@
         </section>
 
         <!-- Controls -->
-        <section class="space-y-3 pb-2">
+        <section class="w-full space-y-3 pb-8 md:pb-12 px-1 md:px-4 mt-2">
             <!-- Primary Controls -->
             <div class="grid grid-cols-4 gap-2 md:gap-3">
                 <button id="prevBtn"
@@ -285,7 +274,15 @@
                     ↻ RESET
                 </button>
             </div>
+            <div class="mt-2">
+                <button id="manualBellBtn"
+                    class="w-full btn-press py-3 rounded-xl bg-amber-600/80 hover:bg-amber-600 font-bold text-sm md:text-lg border border-amber-500/50">
+                    🔔 Manual Bell
+                </button>
+            </div>
         </section>
+
+
 
     </div>
 
@@ -384,7 +381,7 @@
             elapsedMs: 0,          // main timer elapsed
             running: false,
             lastTick: 0,
-            firedBells: new Set(), // keys like "60", "360", "420", "440"
+            firedBells: new Set(), // keys like "60", "360", "420"
             overtimeInterval: null,
             // Prep timer
             prepElapsedMs: 0,
@@ -401,6 +398,86 @@
             audioCtx: null,
             currentPhaseKey: null
         };
+
+        /* ============ DEBATE LOGS ============ */
+        let debateLogs = JSON.parse(localStorage.getItem('debateLogs')) || [];
+
+        window.deleteLog = function (index) {
+            debateLogs.splice(index, 1);
+            localStorage.setItem('debateLogs', JSON.stringify(debateLogs));
+            renderLogs();
+        };
+
+        function getSpeakerCode(n) {
+            const map = {
+                'Prime Minister': 'OG1',
+                'Leader of Opposition': 'OO1',
+                'Deputy Prime Minister': 'OG2',
+                'Deputy Leader of Opposition': 'OO2',
+                'Member of Government': 'CG1',
+                'Member of Opposition': 'CO1',
+                'Government Whip': 'CG2',
+                'Opposition Whip': 'CO2'
+            };
+            return map[n] || n;
+        }
+
+        function renderLogs() {
+            const govContainer = document.getElementById('govLogs');
+            const oppContainer = document.getElementById('oppLogs');
+            if (!govContainer || !oppContainer) return;
+
+            govContainer.innerHTML = '';
+            oppContainer.innerHTML = '';
+
+            debateLogs.forEach((log, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center bg-white/10 border border-white/5 px-3 py-2.5 md:px-4 md:py-3 rounded-lg group shadow-md';
+
+                const code = getSpeakerCode(log.role);
+                const shortRole = shortenName(log.role);
+                const displayName = `${code} (${shortRole})`;
+
+                if (log.teamSide === 'Gov') {
+                    div.innerHTML = `
+                        <div class="flex items-center gap-2 overflow-hidden" title="${log.role}">
+                            <button onclick="deleteLog(${index})" class="text-red-400/70 hover:text-red-300 font-bold transition-colors text-[24px] md:text-[34px]" title="Delete log">✕</button>
+                            <span class="opacity-95 font-semibold truncate">${displayName}</span>
+                        </div>
+                        <span class="mono font-black shrink-0 text-blue-300">${log.time}</span>
+                    `;
+                    govContainer.appendChild(div);
+                } else {
+                    div.innerHTML = `
+                        <span class="mono font-black shrink-0 text-red-300">${log.time}</span>
+                        <div class="flex items-center gap-2 overflow-hidden justify-end" title="${log.role}">
+                            <span class="opacity-95 font-semibold truncate">${displayName}</span>
+                            <button onclick="deleteLog(${index})" class="text-red-400/70 hover:text-red-300 font-bold transition-colors text-[24px] md:text-[34px]" title="Delete log">✕</button>
+                        </div>
+                    `;
+                    oppContainer.appendChild(div);
+                }
+            });
+        }
+
+        function clearLogs() {
+            debateLogs = [];
+            localStorage.removeItem('debateLogs');
+            renderLogs();
+        }
+
+        function logSpeakerTime() {
+            if (state.elapsedMs === 0) return;
+            const sp = SPEAKERS[state.speakerIndex];
+            const logEntry = {
+                role: sp.name,
+                teamSide: (sp.team === 'OG' || sp.team === 'CG') ? 'Gov' : 'Opp',
+                time: formatTime(state.elapsedMs, { showHour: false })
+            };
+            debateLogs.push(logEntry);
+            localStorage.setItem('debateLogs', JSON.stringify(debateLogs));
+            renderLogs();
+        }
 
         /* ============ AUDIO BELL ============ */
         function ensureAudio() {
@@ -494,7 +571,7 @@
             if (elapsedSec < 60) return { key: 'black', label: 'Protected Time' };
             if (elapsedSec < 360) return { key: 'green', label: 'Open Time — POIs Allowed' };
             if (elapsedSec < 420) return { key: 'yellow', label: 'Protected Time' };
-            return { key: 'red', label: elapsedSec >= 440 ? 'Overtime — Stop Speaking' : 'Overtime — Wrap Up' };
+            return { key: 'red', label: elapsedSec >= 435 ? 'Overtime — Stop Speaking' : 'Overtime — Wrap Up' };
         }
 
         function updatePhaseUI() {
@@ -507,7 +584,7 @@
                 state.currentPhaseKey = phase.key;
             }
 
-            if (phase.key === 'red' && sec >= 440) {
+            if (phase.key === 'red' && sec >= 435) {
                 if (!document.body.classList.contains('overtime-blink')) {
                     document.body.classList.add('overtime-blink');
                 }
@@ -532,8 +609,10 @@
             if (sec >= 60 && !state.firedBells.has('60')) { playBell(1); state.firedBells.add('60'); }
             if (sec >= 360 && !state.firedBells.has('360')) { playBell(1); state.firedBells.add('360'); }
             if (sec >= 420 && !state.firedBells.has('420')) { playBell(2); state.firedBells.add('420'); }
-            if (sec >= 440 && !state.overtimeInterval) {
-                state.overtimeInterval = setInterval(() => { if (state.running) playBell(1); }, 1500);
+
+            if (sec >= 435 && !state.overtimeInterval) {
+                playBell(1);
+                state.overtimeInterval = setInterval(() => { if (state.running) playBell(1); }, 750);
             }
         }
 
@@ -551,6 +630,26 @@
             updatePhaseUI();
         }
 
+        function adjustTime(ms) {
+            state.elapsedMs = Math.max(0, state.elapsedMs + ms);
+
+            // Re-evaluate fired bells so jumping time doesn't spam sounds
+            const sec = Math.floor(state.elapsedMs / 1000);
+            if (sec >= 60) state.firedBells.add('60'); else state.firedBells.delete('60');
+            if (sec >= 360) state.firedBells.add('360'); else state.firedBells.delete('360');
+            if (sec >= 420) state.firedBells.add('420'); else state.firedBells.delete('420');
+
+            if (sec < 435) {
+                if (state.overtimeInterval) {
+                    clearInterval(state.overtimeInterval);
+                    state.overtimeInterval = null;
+                }
+            }
+
+            document.getElementById('mainTimer').textContent = formatTime(state.elapsedMs);
+            updatePhaseUI();
+        }
+
         /* ============ CONTROLS ============ */
         function startTimer() {
             ensureAudio();
@@ -563,6 +662,10 @@
         function pauseTimer() {
             state.running = false;
             document.getElementById('playBtn').innerHTML = '▶ Resume';
+            if (state.overtimeInterval) {
+                clearInterval(state.overtimeInterval);
+                state.overtimeInterval = null;
+            }
         }
 
         function togglePlay() {
@@ -581,10 +684,13 @@
         }
 
         function nextSpeaker() {
+            logSpeakerTime();
             if (state.speakerIndex < SPEAKERS.length - 1) {
                 state.speakerIndex++;
                 resetCurrentSpeaker();
                 updateSpeakerInfo();
+            } else {
+                resetCurrentSpeaker();
             }
         }
 
@@ -732,12 +838,17 @@
 
         /* ============ EVENT BINDINGS ============ */
         document.getElementById('playBtn').addEventListener('click', togglePlay);
-        document.getElementById('resetBtn').addEventListener('click', resetCurrentSpeaker);
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            logSpeakerTime();
+            resetCurrentSpeaker();
+        });
         document.getElementById('nextBtn').addEventListener('click', nextSpeaker);
         document.getElementById('prevBtn').addEventListener('click', prevSpeaker);
         document.getElementById('poiBtn').addEventListener('click', startPOI);
         document.getElementById('poiCloseBtn').addEventListener('click', closePOI);
         document.getElementById('wakeLockBtn').addEventListener('click', toggleWakeLock);
+        document.getElementById('clearLogsBtn').addEventListener('click', clearLogs);
+        document.getElementById('manualBellBtn').addEventListener('click', () => { ensureAudio(); playBell(1); });
 
         document.getElementById('toPrepBtn').addEventListener('click', showPrep);
         document.getElementById('toMainBtn').addEventListener('click', showMain);
@@ -756,8 +867,29 @@
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             if (document.getElementById('prepView').classList.contains('hidden-view')) {
-                if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
-                else if (e.key === 'r' || e.key === 'R') resetCurrentSpeaker();
+                const poiVisible = !document.getElementById('poiSection').classList.contains('hidden');
+
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    if (state.poiActive) {
+                        closePOI();
+                    } else if (poiVisible) {
+                        startPOI();
+                    } else {
+                        togglePlay();
+                    }
+                }
+                else if (e.code === 'Enter') {
+                    e.preventDefault();
+                    logSpeakerTime();
+                    resetCurrentSpeaker();
+                }
+                else if (e.key === 'r' || e.key === 'R') {
+                    logSpeakerTime();
+                    resetCurrentSpeaker();
+                }
+                else if (e.key === 'a' || e.key === 'A') adjustTime(-10000);
+                else if (e.key === 'd' || e.key === 'D') adjustTime(10000);
                 else if (e.key === 'ArrowRight') nextSpeaker();
                 else if (e.key === 'ArrowLeft') prevSpeaker();
                 else if (e.key === 'p' || e.key === 'P') startPOI();
@@ -772,6 +904,7 @@
         });
 
         /* ============ BOOT ============ */
+        renderLogs();
         updateSpeakerInfo();
         updatePhaseUI();
         state.lastTick = performance.now();
