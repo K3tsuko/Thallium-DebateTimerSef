@@ -164,6 +164,37 @@
         .hidden-view {
             display: none !important;
         }
+
+        /* 1. RIPPLE EFFECT STYLES */
+        .ripple-effect {
+            position: fixed;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            background-color: rgba(255, 255, 255, 0.1);
+            pointer-events: none;
+            z-index: 0;
+            will-change: transform, opacity;
+            animation: lightweightRipple 1.2s ease-out forwards;
+        }
+
+        @keyframes lightweightRipple {
+            0% {
+                transform: scale(0.1) translateZ(0);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(2) translateZ(0);
+                opacity: 0;
+            }
+        }
+
+        /* Ensure container views have stacking contexts so the ripple stays in the background */
+        #mainView,
+        #prepView {
+            position: relative;
+            z-index: 10;
+        }
     </style>
 </head>
 
@@ -432,10 +463,44 @@
             return state.audioCtx;
         }
 
+        // 2. TRIGGER FUNCTION
+        function triggerRippleEffect() {
+            // Detect which timer is currently visible
+            const isPrep = !document.getElementById('prepView').classList.contains('hidden-view');
+            const timerContainer = isPrep ? document.getElementById('prepTimer') : document.getElementById('mainTimer');
+
+            if (!timerContainer) return;
+
+            const rect = timerContainer.getBoundingClientRect();
+            const ripple = document.createElement('div');
+            ripple.className = 'ripple-effect';
+
+            const size = Math.max(rect.width, rect.height) * 1.2;
+
+            ripple.style.width = size + 'px';
+            ripple.style.height = size + 'px';
+
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            ripple.style.left = (centerX - size / 2) + 'px';
+            ripple.style.top = (centerY - size / 2) + 'px';
+
+            // Insert at the beginning of the body so it sits behind text
+            document.body.insertBefore(ripple, document.body.firstChild);
+
+            setTimeout(() => {
+                ripple.remove();
+            }, 1500);
+        }
+
         function playBell(count = 1) {
             const ctx = ensureAudio();
             const now = ctx.currentTime;
             for (let i = 0; i < count; i++) {
+                // Triggers the visual ripple in sync with each bell ring
+                setTimeout(() => triggerRippleEffect(), i * 450);
+
                 const t = now + i * 0.45;
                 const freqs = [523.25, 1046.5, 1568, 2093];
                 const gains = [0.55, 0.35, 0.2, 0.1];
@@ -619,7 +684,7 @@
                 btn.textContent = 'Confirm Clear?';
                 btn.classList.remove('bg-red-600', 'hover:bg-red-700');
                 btn.classList.add('bg-amber-600', 'hover:bg-amber-700');
-                
+
                 // Reset after 3 seconds if not clicked again
                 clearConfirmTimeout = setTimeout(() => {
                     resetClearButton();
@@ -631,7 +696,7 @@
                     clearConfirmTimeout = null;
                 }
                 resetClearButton();
-                
+
                 state.logs = {};
                 try {
                     localStorage.removeItem('bp_debate_logs');
